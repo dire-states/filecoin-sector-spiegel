@@ -8,8 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "fetch:calibnet": "node scripts/fetch-sectors.ts --out ../data-calibnet",
-    "fetch:mainnet": "node scripts/fetch-sectors.ts --out ../data-mainnet"
+    "fetch:calibnet": "node scripts/fetch-sectors.ts --out ../filecoin-sector-spiegel-data-calibration",
+    "fetch:mainnet": "node scripts/fetch-sectors.ts --out ../filecoin-sector-spiegel-data-main"
   },
   "dependencies": {
     "react": "^19.3.1",

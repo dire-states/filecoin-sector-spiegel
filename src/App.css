@@ -3,11 +3,11 @@
   height: 100dvh;
   display: grid;
   grid-template-rows: auto 1fr 25%;
-  grid-template-columns: 25% 75%;
+  grid-template-columns: 20% 60% 20%;
   grid-template-areas:
-    'header header'
-    'left main'
-    'bottom bottom';
+    'header header header'
+    'left main right'
+    'bottom bottom bottom';
 }
 
 .header {
@@ -68,6 +68,12 @@
   grid-area: main;
 }
 
+.right {
+  grid-area: right;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+}
+
 .bottom {
   grid-area: bottom;
   border-top: 1px solid var(--border);
@@ -77,6 +83,7 @@
 /* min-height/min-width 0 lets grid children shrink so they scroll instead of growing the page */
 .left,
 .main,
+.right,
 .bottom {
   min-height: 0;
   min-width: 0;
@@ -119,6 +126,11 @@
 
 .main-chart > .panel {
   flex: 1;
+}
+
+.history-note {
+  margin: -0.4rem 0 0.6rem;
+  font-size: 12px;
 }
 
 .pane-title {

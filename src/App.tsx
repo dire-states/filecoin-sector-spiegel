@@ -4,9 +4,10 @@ import Header from './components/Header'
 import LeftPane, { type SortKey } from './components/LeftPane'
 import MainPane from './components/MainPane'
 import BottomPane from './components/BottomPane'
+import HistoryPane from './components/HistoryPane'
 import { NETWORKS, netFromUrl, type NetKey } from './lib/networks'
 import { decodeMiner, type DecodedMiner } from './lib/sectors'
-import type { MinerData, MinerIndex, MinerSummary } from './lib/types'
+import type { History, MinerData, MinerIndex, MinerSummary } from './lib/types'
 
 class NotFound extends Error {}
 
@@ -42,6 +43,7 @@ function App() {
 function Dashboard({ net, onNet }: { net: NetKey; onNet: (net: NetKey) => void }) {
   const base = NETWORKS[net].base
   const [index, setIndex] = useState<MinerIndex | null>(null)
+  const [history, setHistory] = useState<History | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortKey>('live')
@@ -81,6 +83,10 @@ function Dashboard({ net, onNet }: { net: NetKey; onNet: (net: NetKey) => void }
     getJson<MinerIndex>(base, 'miners.json')
       .then(setIndex)
       .catch((err: Error) => setError(err instanceof NotFound ? `No ${NETWORKS[net].label} data yet.` : err.message))
+    // Optional: a dataset without recorded history shows an empty extensions list.
+    getJson<History>(base, 'history.json')
+      .then(setHistory)
+      .catch((err: Error) => !(err instanceof NotFound) && setError(err.message))
   }, [base, net])
 
   // Miners matching the search, in the chosen order: drives the list and the overview.
@@ -138,6 +144,7 @@ function Dashboard({ net, onNet }: { net: NetKey; onNet: (net: NetKey) => void }
         slots={slots}
         onMinerClick={clickMiner}
       />
+      <HistoryPane index={index} history={history} selected={selected} onMinerClick={clickMiner} />
       <BottomPane index={index} />
     </div>
   )

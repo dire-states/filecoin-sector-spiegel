@@ -7,8 +7,8 @@ import { defineConfig, type Connect, type Plugin } from 'vite'
 // same way it will read the published repos later.
 function dataRepos(): Plugin {
   const dirs: Record<string, string> = {
-    calibnet: resolve(process.env.DATA_DIR_CALIBNET ?? '../data-calibnet'),
-    mainnet: resolve(process.env.DATA_DIR_MAINNET ?? '../data-mainnet'),
+    calibnet: resolve(process.env.DATA_DIR_CALIBNET ?? '../filecoin-sector-spiegel-data-calibration'),
+    mainnet: resolve(process.env.DATA_DIR_MAINNET ?? '../filecoin-sector-spiegel-data-main'),
   }
   const serve: Connect.NextHandleFunction = async (req, res, next) => {
     const match = /^\/data\/(calibnet|mainnet)\/([\w./-]+\.json)$/.exec((req.url ?? '').split('?')[0])
@@ -38,5 +38,7 @@ function dataRepos(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
+  // GitHub Pages serves the app under /<repo>/; local dev and preview stay at the root.
+  base: process.env.BASE_PATH ?? '/',
   plugins: [react(), dataRepos()],
 })

@@ -52,3 +52,32 @@ export interface MinerData {
   // gets terminated if its fault isn't recovered.
   earlyExpiration: number[]
 }
+
+// One miner's changes between two consecutive snapshots. Only miners with changes are recorded.
+export interface MinerChange {
+  id: string
+  // Live in both snapshots with a later expiration.
+  extended: number
+  // Days added across all extended sectors (average = extendedDays / extended).
+  extendedDays: number
+  // Gone, and its expiration had passed.
+  expired: number
+  // Gone before its expiration.
+  terminated: number
+  // Sector numbers not in the previous snapshot.
+  added: number
+}
+
+export interface HistoryEntry {
+  height: number
+  prevHeight: number
+  fetchedAt: string
+  changes: MinerChange[]
+}
+
+// History file: data/history.json, oldest entry first. Data repos keep only the latest snapshot,
+// so the fetch script records the changes against the previous one here.
+export interface History {
+  network: string
+  entries: HistoryEntry[]
+}

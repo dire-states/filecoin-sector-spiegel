@@ -10,7 +10,8 @@ import { decodeRuns, encodeRuns, type Runs } from '../src/lib/bitfield.ts'
 import { deltaEncode } from '../src/lib/delta.ts'
 import { EPOCHS_PER_DAY } from '../src/lib/epochs.ts'
 import { histogram, stripBuckets } from '../src/lib/lifetime.ts'
-import type { MinerData, MinerIndex, MinerSummary } from '../src/lib/types.ts'
+import { decodeMiner } from '../src/lib/sectors.ts'
+import type { History, MinerChange, MinerData, MinerIndex, MinerSummary } from '../src/lib/types.ts'
 
 const { values: args } = parseArgs({
   options: {
@@ -105,11 +106,58 @@ function addToHistogram(hist: Map<number, number>, epochs: number[]) {
   for (const [day, count] of histogram(epochs)) hist.set(day, (hist.get(day) ?? 0) + count)
 }
 
+async function readJson<T>(url: URL): Promise<T | null> {
+  try {
+    return JSON.parse(await readFile(url, 'utf8')) as T
+  } catch (err) {
+    if ((err as { code?: string }).code === 'ENOENT') return null
+    throw err
+  }
+}
+
+// The previous snapshot's file for a miner, if it is older than this run (a re-run at the same
+// head has nothing to compare against).
+async function previousMiner(id: string, height: number): Promise<MinerData | null> {
+  const old = await readJson<MinerData>(new URL(`${id}.json`, MINERS_DIR))
+  return old && old.height < height ? old : null
+}
+
+// Compares a miner's live sectors with the previous snapshot by sector number.
+function diffMiner(id: string, old: MinerData, numbers: number[], expiration: number[], height: number): MinerChange {
+  const prev = decodeMiner(old)
+  const before = new Map(prev.numbers.map((n, i) => [n, prev.expiration[i]]))
+  const change: MinerChange = { id, extended: 0, extendedDays: 0, expired: 0, terminated: 0, added: 0 }
+  numbers.forEach((n, i) => {
+    const was = before.get(n)
+    if (was === undefined) change.added++
+    else if (expiration[i] > was) {
+      change.extended++
+      change.extendedDays += (expiration[i] - was) / EPOCHS_PER_DAY
+    }
+    before.delete(n)
+  })
+  // What's left is gone: on time if its expiration has passed, terminated early otherwise.
+  for (const was of before.values()) {
+    if (was <= height) change.expired++
+    else change.terminated++
+  }
+  change.extendedDays = Math.round(change.extendedDays)
+  return change
+}
+
+const hasChanges = (c: MinerChange) => c.extended + c.expired + c.terminated + c.added > 0
+
 async function fetchMiner(
   id: string,
   tsk: unknown,
   height: number,
-): Promise<{ summary: MinerSummary; expirations: number[]; maxExpirations: number[]; seconds: number }> {
+): Promise<{
+  summary: MinerSummary
+  expirations: number[]
+  maxExpirations: number[]
+  change: MinerChange | null
+  seconds: number
+}> {
   const started = Date.now()
   const live: number[] = []
   const faulty: number[] = []
@@ -160,6 +208,8 @@ async function fetchMiner(
     expiration: deltaEncode(expiration),
     earlyExpiration: deltaEncode(early),
   }
+  const old = await previousMiner(id, height)
+  const change = old ? diffMiner(id, old, live, expiration, height) : null
   await writeFile(new URL(`${id}.json`, MINERS_DIR), JSON.stringify(data))
 
   const summary: MinerSummary = {
@@ -176,7 +226,7 @@ async function fetchMiner(
       stripBuckets(height),
     ),
   }
-  return { summary, expirations: effective, maxExpirations, seconds: (Date.now() - started) / 1000 }
+  return { summary, expirations: effective, maxExpirations, change, seconds: (Date.now() - started) / 1000 }
 }
 
 const network = await rpc<string>('StateNetworkName', [])
@@ -193,6 +243,14 @@ if (lag > MAX_HEAD_LAG_SECONDS && !args['allow-stale']) {
 }
 const runStarted = Date.now()
 
+// Extension history: the data repos keep only the latest snapshot, so changes against the
+// previous one are recorded here before its files get overwritten.
+const HISTORY_URL = new URL('history.json', DATA_DIR)
+const history = (await readJson<History>(HISTORY_URL)) ?? { network, entries: [] }
+const prevIndex = await readJson<MinerIndex>(new URL('miners.json', DATA_DIR))
+const prevHeight = prevIndex && prevIndex.height < head.Height ? prevIndex.height : null
+const changes: MinerChange[] = []
+
 const all = await rpc<string[]>('StateListMiners', [tsk])
 // Mainnet lists hundreds of thousands of miner actors; most have no sectors left.
 let counted = 0
@@ -205,9 +263,15 @@ const withLive = all.filter((_, i) => counts[i].Live > 0)
 console.log(`${all.length} miners, ${withLive.length} with live sectors`)
 
 // Clear stale miner files but keep the directory, so a running dev server keeps serving it.
+// A miner that dropped out lost all its sectors since the previous snapshot.
 await mkdir(MINERS_DIR, { recursive: true })
+const liveIds = new Set(withLive)
 for (const f of await readdir(MINERS_DIR)) {
-  if (f.endsWith('.json') && !withLive.includes(f.slice(0, -5))) await rm(new URL(f, MINERS_DIR))
+  const id = f.slice(0, -5)
+  if (!f.endsWith('.json') || liveIds.has(id)) continue
+  const old = await previousMiner(id, head.Height)
+  if (old) changes.push(diffMiner(id, old, [], [], head.Height))
+  await rm(new URL(f, MINERS_DIR))
 }
 
 const perDay = new Map<number, number>()
@@ -219,7 +283,8 @@ let done = 0
 let doneSectors = 0
 const fetchStarted = Date.now()
 const miners = await pool(withLive, async (id) => {
-  const { summary, expirations, maxExpirations, seconds } = await fetchMiner(id, tsk, head.Height)
+  const { summary, expirations, maxExpirations, change, seconds } = await fetchMiner(id, tsk, head.Height)
+  if (change && hasChanges(change)) changes.push(change)
   addToHistogram(perDay, expirations)
   addToHistogram(maxPerDay, maxExpirations)
   maxLastExpiration = Math.max(maxLastExpiration, summary.maxLastExpiration)
@@ -248,21 +313,29 @@ const index: MinerIndex = {
   },
 }
 await writeFile(new URL('miners.json', DATA_DIR), JSON.stringify(index))
+
+if (prevHeight !== null) {
+  const recorded = changes.filter(hasChanges).sort((a, b) => b.extended - a.extended || a.id.localeCompare(b.id))
+  history.entries.push({ height: head.Height, prevHeight, fetchedAt: index.fetchedAt, changes: recorded })
+  await writeFile(HISTORY_URL, JSON.stringify(history))
+  const sum = (k: keyof Omit<MinerChange, 'id'>) => recorded.reduce((a, c) => a + c[k], 0)
+  console.log(
+    `history: ${prevHeight} -> ${head.Height}: ${sum('extended')} extended (${recorded.filter((c) => c.extended).length} miners),` +
+      ` ${sum('expired')} expired, ${sum('terminated')} terminated, ${sum('added')} added`,
+  )
+}
 const faultyTotal = miners.reduce((a, m) => a + m.faulty, 0)
 console.log(
   `wrote ${OUT_PATH}/miners.json and ${miners.length} miner files: ${doneSectors} sectors, ${faultyTotal} faulty,` +
     ` ${Math.round((Date.now() - runStarted) / 1000)}s`,
 )
 
-// Data repos keep no history: the snapshot replaces the branch as a single parentless commit,
-// and the previous one is pruned so the repo stays the size of one snapshot.
+// One commit per snapshot keeps the full history locally; publish.sh pushes only the latest
+// tree to GitHub, as a single parentless commit.
 if (args.commit) {
   const git = (...a: string[]) => execFileSync('git', ['-C', OUT_PATH, ...a], { encoding: 'utf8' }).trim()
   git('add', '-A')
   const message = `snapshot ${network} @ ${head.Height} (${index.fetchedAt.slice(0, 10)})`
-  const commit = git('commit-tree', git('write-tree'), '-m', message)
-  git('update-ref', 'HEAD', commit)
-  git('reflog', 'expire', '--expire=now', '--all')
-  git('gc', '--prune=now', '--quiet')
-  console.log(`committed ${commit.slice(0, 7)} ${message}`)
+  git('commit', '--quiet', '-m', message)
+  console.log(`committed ${git('rev-parse', '--short', 'HEAD')} ${message}`)
 }
