@@ -1,6 +1,6 @@
 // Snapshot basic sector data of all miners with live sectors into a data repo:
 // <out>/miners.json (index) and <out>/miners/<id>.json (one per miner).
-// Usage: [LOTUS_API=http://host:1234/rpc/v1] node scripts/fetch-sectors.ts --out <data repo> [--commit]
+// Usage: [LOTUS_API=http://host:1234/rpc/v1] node scripts/fetch-sectors.ts --out <data repo> [--commit] [--allow-stale]
 import { execFileSync } from 'node:child_process'
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
@@ -13,7 +13,11 @@ import { histogram, stripBuckets } from '../src/lib/lifetime.ts'
 import type { MinerData, MinerIndex, MinerSummary } from '../src/lib/types.ts'
 
 const { values: args } = parseArgs({
-  options: { out: { type: 'string' }, commit: { type: 'boolean', default: false } },
+  options: {
+    out: { type: 'string' },
+    commit: { type: 'boolean', default: false },
+    'allow-stale': { type: 'boolean', default: false },
+  },
 })
 if (!args.out) throw new Error('--out <data repo directory> is required')
 const OUT_PATH = resolve(args.out)
@@ -22,17 +26,22 @@ const MINERS_DIR = new URL('miners/', DATA_DIR)
 
 // Each data repo declares its network; never write one network's data into another's repo.
 const dataset = JSON.parse(await readFile(new URL('dataset.json', DATA_DIR), 'utf8')) as { network: string }
-// The local calibnet node is the only default; any other network needs LOTUS_API set explicitly.
+// Local nodes per network; LOTUS_API overrides. The network-name check below catches a wrong port.
+const DEFAULT_API: Record<string, string> = {
+  calibrationnet: 'http://192.168.50.123:1234/rpc/v1',
+  mainnet: 'http://192.168.50.123:1235/rpc/v1',
+}
 const API =
   process.env.LOTUS_API ??
-  (dataset.network === 'calibrationnet'
-    ? 'http://192.168.50.123:1234/rpc/v1'
-    : (() => {
-        throw new Error(`LOTUS_API must be set for ${dataset.network}`)
-      })())
+  DEFAULT_API[dataset.network] ??
+  (() => {
+    throw new Error(`LOTUS_API must be set for ${dataset.network}`)
+  })()
 const CONCURRENCY = 32
 // Per-miner parallelism for StateSectorExpiration lookups (runs inside the miner pool).
-const EXPIRATION_BATCH = 8
+const EXPIRATION_BATCH = 32
+// A head older than this means the node is still syncing; the snapshot height would be wrong.
+const MAX_HEAD_LAG_SECONDS = 600
 // Sectors per StateMinerSectors request.
 const SECTORS_CHUNK = 50_000
 const DEADLINES = 48
@@ -50,7 +59,10 @@ async function rpc<T>(method: string, params: unknown[], attempts = 3): Promise<
       if (body.error) throw new Error(`${method}: ${body.error.message}`)
       return body.result as T
     } catch (err) {
-      if (attempt >= attempts) throw err
+      if (attempt >= attempts) {
+        const cause = (err as { cause?: { code?: string } }).cause?.code
+        throw cause ? new Error(`${method}: cannot reach ${API} (${cause})`) : err
+      }
     }
   }
 }
@@ -97,7 +109,8 @@ async function fetchMiner(
   id: string,
   tsk: unknown,
   height: number,
-): Promise<{ summary: MinerSummary; expirations: number[]; maxExpirations: number[] }> {
+): Promise<{ summary: MinerSummary; expirations: number[]; maxExpirations: number[]; seconds: number }> {
+  const started = Date.now()
   const live: number[] = []
   const faulty: number[] = []
   const recovering: number[] = []
@@ -163,17 +176,22 @@ async function fetchMiner(
       stripBuckets(height),
     ),
   }
-  return { summary, expirations: effective, maxExpirations }
+  return { summary, expirations: effective, maxExpirations, seconds: (Date.now() - started) / 1000 }
 }
 
 const network = await rpc<string>('StateNetworkName', [])
 if (network !== dataset.network) {
   throw new Error(`node at ${API} is on ${network}, but ${OUT_PATH} holds ${dataset.network} data`)
 }
-const head = await rpc<{ Cids: unknown; Height: number }>('ChainHead', [])
+const head = await rpc<{ Cids: unknown; Height: number; Blocks: { Timestamp: number }[] }>('ChainHead', [])
 const genesis = await rpc<{ Blocks: { Timestamp: number }[] }>('ChainGetGenesis', [])
 const tsk = head.Cids
-console.log(`${network} @ ${head.Height}`)
+const lag = Math.round(Date.now() / 1000 - head.Blocks[0].Timestamp)
+console.log(`${network} @ ${head.Height} (head ${lag}s old)`)
+if (lag > MAX_HEAD_LAG_SECONDS && !args['allow-stale']) {
+  throw new Error(`node not synced: head ${head.Height} is ${Math.round(lag / 60)} min behind (--allow-stale to override)`)
+}
+const runStarted = Date.now()
 
 const all = await rpc<string[]>('StateListMiners', [tsk])
 // Mainnet lists hundreds of thousands of miner actors; most have no sectors left.
@@ -195,13 +213,23 @@ for (const f of await readdir(MINERS_DIR)) {
 const perDay = new Map<number, number>()
 const maxPerDay = new Map<number, number>()
 let maxLastExpiration = 0
+// Progress by sector count, since miner sizes range from a handful of sectors to millions.
+const totalSectors = counts.reduce((a, c) => a + c.Live, 0)
 let done = 0
+let doneSectors = 0
+const fetchStarted = Date.now()
 const miners = await pool(withLive, async (id) => {
-  const { summary, expirations, maxExpirations } = await fetchMiner(id, tsk, head.Height)
+  const { summary, expirations, maxExpirations, seconds } = await fetchMiner(id, tsk, head.Height)
   addToHistogram(perDay, expirations)
   addToHistogram(maxPerDay, maxExpirations)
   maxLastExpiration = Math.max(maxLastExpiration, summary.maxLastExpiration)
-  if (++done % 50 === 0) console.log(`  ${done}/${withLive.length}`)
+  doneSectors += summary.live
+  const elapsed = (Date.now() - fetchStarted) / 1000
+  const eta = Math.round((elapsed / doneSectors) * (totalSectors - doneSectors) / 60)
+  console.log(
+    `  ${++done}/${withLive.length} ${id}: ${summary.live} sectors, ${summary.faulty} faulty, ${seconds.toFixed(1)}s` +
+      ` (${((100 * doneSectors) / totalSectors).toFixed(1)}%, ~${eta} min left)`,
+  )
   return summary
 })
 miners.sort((a, b) => b.live - a.live)
@@ -220,7 +248,11 @@ const index: MinerIndex = {
   },
 }
 await writeFile(new URL('miners.json', DATA_DIR), JSON.stringify(index))
-console.log(`wrote ${OUT_PATH}/miners.json and ${miners.length} miner files`)
+const faultyTotal = miners.reduce((a, m) => a + m.faulty, 0)
+console.log(
+  `wrote ${OUT_PATH}/miners.json and ${miners.length} miner files: ${doneSectors} sectors, ${faultyTotal} faulty,` +
+    ` ${Math.round((Date.now() - runStarted) / 1000)}s`,
+)
 
 if (args.commit) {
   const git = (...a: string[]) => execFileSync('git', ['-C', OUT_PATH, ...a], { stdio: 'inherit' })

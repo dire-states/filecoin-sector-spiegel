@@ -30,18 +30,19 @@ Switch networks in the header, or with `?net=mainnet` in the URL.
 
 ```sh
 npm run fetch:calibnet                                  # writes ../data-calibnet
-LOTUS_API=http://<node>:1234/rpc/v1 npm run fetch:mainnet   # writes ../data-mainnet
+npm run fetch:mainnet                                   # writes ../data-mainnet
 ```
 
 - Add `-- --commit` to commit the snapshot in the data repo.
 - Each data repo has a `dataset.json` naming its network. The script aborts if the node is on a
   different network.
-- `LOTUS_API` defaults to the local calibnet node and must be set explicitly for mainnet.
+- The script aborts if the node's head is more than 10 min old (still syncing); `-- --allow-stale` overrides.
+- `LOTUS_API` defaults to the local node for the repo's network.
 
 ## Configuration
 
 | Variable | Used by | Default |
 |---|---|---|
-| `LOTUS_API` | fetch script | calibnet: `http://192.168.50.123:1234/rpc/v1`; mainnet: required |
+| `LOTUS_API` | fetch script | calibnet: `http://192.168.50.123:1234/rpc/v1`; mainnet: `http://192.168.50.123:1235/rpc/v1` |
 | `DATA_DIR_CALIBNET`, `DATA_DIR_MAINNET` | dev/preview server | `../data-calibnet`, `../data-mainnet` |
 | `VITE_DATA_BASE_CALIBNET`, `VITE_DATA_BASE_MAINNET` | build | `/data/calibnet/`, `/data/mainnet/` (set to the published data URLs for a deployment) |
