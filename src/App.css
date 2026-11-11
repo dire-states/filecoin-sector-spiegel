@@ -1,0 +1,578 @@
+.app {
+  height: 100vh;
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr 25%;
+  grid-template-columns: 25% 75%;
+  grid-template-areas:
+    'header header'
+    'left main'
+    'bottom bottom';
+}
+
+.header {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.header h1 {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.net-toggle {
+  display: flex;
+  margin-left: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.net-toggle button {
+  padding: 0.1rem 0.6rem;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.net-toggle button.on {
+  background: var(--accent);
+  color: #fff;
+}
+
+.header-death {
+  margin-left: 1.5rem;
+  font-size: 13px;
+}
+
+.header-meta {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.left {
+  grid-area: left;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.main {
+  grid-area: main;
+}
+
+.bottom {
+  grid-area: bottom;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+
+/* min-height/min-width 0 lets grid children shrink so they scroll instead of growing the page */
+.left,
+.main,
+.bottom {
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  padding: 1rem;
+}
+
+.bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  overflow: hidden;
+}
+
+/* Main pane: fixed head and legend, scrolling matrices, and the selection chart pinned to the bottom 25%. */
+.main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.main-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 1rem;
+}
+
+.main-chart {
+  display: flex;
+  flex: 0 0 25%;
+  min-height: 0;
+  margin: 0 -1rem;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.main-chart > .panel {
+  flex: 1;
+}
+
+.pane-title {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+}
+
+.miner-block + .miner-block {
+  margin-top: 1rem;
+}
+
+.miner-block-title {
+  margin: 0 0 0.35rem;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.miner-title {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.error {
+  color: var(--status-critical);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.ink {
+  color: var(--text);
+}
+
+.miner-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.left-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.link:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.miner {
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.miner-body {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.miner:hover {
+  background: var(--border);
+}
+
+.miner.selected {
+  background: var(--accent);
+  color: #fff;
+}
+
+.miner-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.miner-end {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.miner.selected .miner-end {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.miner-id {
+  font-family: ui-monospace, monospace;
+}
+
+.miner-counts {
+  font-variant-numeric: tabular-nums;
+}
+
+.miner:not(.selected) .faulty {
+  color: var(--status-critical);
+}
+
+.legend {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  vertical-align: -1px;
+}
+
+.swatch.faulty {
+  background: var(--status-critical);
+}
+
+.swatch.recovering {
+  background: var(--status-warning);
+}
+
+.matrix {
+  position: relative;
+}
+
+.matrix-cells {
+  position: relative;
+  cursor: pointer;
+}
+
+.matrix-chunk {
+  position: absolute;
+  left: 0;
+  display: block;
+}
+
+/* Overview: one stacked lifetime bar per miner. */
+.strips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.strip-row {
+  display: grid;
+  grid-template-columns: 15rem 1fr 7.5rem;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.2rem 0.25rem;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.strip-row:hover {
+  background: var(--panel);
+}
+
+.strip-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.strip-label .faulty {
+  color: var(--status-critical);
+}
+
+.strip {
+  display: block;
+  width: 100%;
+  height: 10px;
+}
+
+.strip-end {
+  font-size: 11px;
+  text-align: right;
+}
+
+.strip-tip {
+  position: fixed;
+  z-index: 10;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  font-size: 11px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.list-controls {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.list-controls input,
+.list-controls select {
+  min-width: 0;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.list-controls input {
+  flex: 1;
+}
+
+.cell-highlight {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  outline: 2px solid var(--text);
+  pointer-events: none;
+}
+
+.main-head {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.ramp-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ramp {
+  display: inline-block;
+  width: 120px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.panel-head {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  font-size: 12px;
+}
+
+.panel-title {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.panel-head strong {
+  white-space: nowrap;
+}
+
+.chart-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.chart-legend {
+  position: relative;
+  display: flex;
+  gap: 0.9rem;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* Full-width hidden copy of the legend, measured to decide how many items fit. */
+.chart-legend-measure {
+  position: absolute;
+  display: flex;
+  gap: 0.9rem;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.line-key {
+  display: inline-block;
+  width: 12px;
+  height: 2px;
+  margin-right: 0.35rem;
+  vertical-align: middle;
+  border-radius: 1px;
+}
+
+.line-key.dashed {
+  background: repeating-linear-gradient(to right, currentColor 0 5px, transparent 5px 8px);
+}
+
+.chart {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+/* uPlot fills this box; the readout and dots are positioned over it. */
+.chart-plot {
+  position: absolute;
+  inset: 0;
+}
+
+.chart-plot .u-cursor-x {
+  border-right: 1px solid var(--muted);
+}
+
+.chart-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border: 2px solid var(--panel);
+  border-radius: 50%;
+  box-sizing: content-box;
+  pointer-events: none;
+}
+
+.chart-tip-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.chart-tip {
+  position: fixed;
+  z-index: 10;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  font-size: 11px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 10;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.15);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.tooltip-title {
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.tooltip dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0;
+}
+
+.tooltip dt {
+  color: var(--muted);
+}
+
+.tooltip dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.tooltip.pinned {
+  pointer-events: auto;
+  border-color: var(--text);
+}
+
+.tooltip-hint {
+  float: right;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.tooltip-section {
+  margin: 0.5rem 0 0.25rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.tooltip-loading {
+  color: var(--muted);
+}
+
+.mono {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+
+.badge {
+  margin-left: 0.4rem;
+  padding: 0 0.35rem;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.badge.active {
+  background: var(--status-good);
+}
+
+.badge.faulty {
+  background: var(--status-critical);
+}
+
+.badge.recovering {
+  background: var(--status-warning);
+}
