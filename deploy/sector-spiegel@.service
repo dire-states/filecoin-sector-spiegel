@@ -1,0 +1,17 @@
+# One fetch + commit + publish for a network: sector-spiegel@calibnet / sector-spiegel@mainnet.
+# Started by sector-spiegel-<network>.timer; run by hand with `systemctl start sector-spiegel@mainnet`.
+[Unit]
+Description=sector-spiegel snapshot (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=dire-states
+Group=dire-states
+WorkingDirectory=/opt/dire-states/sector-spiegel/filecoin-sector-spiegel
+# A Node 26 tarball unpacked to /opt/dire-states/node takes precedence over a system node.
+Environment=PATH=/opt/dire-states/node/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/env bash scripts/publish.sh %i
+Nice=10
+TimeoutStartSec=1h

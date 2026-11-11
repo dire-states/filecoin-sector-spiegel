@@ -1,0 +1,11 @@
+[Unit]
+Description=sector-spiegel calibnet snapshot, 4 times a day
+
+[Timer]
+OnCalendar=*-*-* 00/6:00:00
+# Catch up on a run missed while the host was down.
+Persistent=true
+Unit=sector-spiegel@calibnet.service
+
+[Install]
+WantedBy=timers.target

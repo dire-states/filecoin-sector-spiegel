@@ -1,0 +1,12 @@
+[Unit]
+Description=sector-spiegel mainnet snapshot, 4 times a day
+
+[Timer]
+# 10 minutes after calibnet, so the two runs don't load the host at the same time.
+OnCalendar=*-*-* 00/6:10:00
+# Catch up on a run missed while the host was down.
+Persistent=true
+Unit=sector-spiegel@mainnet.service
+
+[Install]
+WantedBy=timers.target

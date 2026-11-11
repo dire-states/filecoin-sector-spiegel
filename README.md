@@ -61,16 +61,8 @@ scripts/publish.sh mainnet
 
 ### On the Lotus host
 
-1. Install Node 26 and git.
-2. Clone the three repos side by side. Give each data repo a deploy key with write access, and set
-   `core.sshCommand` and the commit identity in each data clone.
-3. Seed each data clone's local `main` once, from the machine that holds the history so far.
-4. Add a crontab, for example 4 runs a day:
-   ```
-   0 */6 * * *   cd /srv/sector-spiegel/filecoin-sector-spiegel && scripts/publish.sh calibnet >> /var/log/sector-spiegel.log 2>&1
-   10 */6 * * *  cd /srv/sector-spiegel/filecoin-sector-spiegel && scripts/publish.sh mainnet  >> /var/log/sector-spiegel.log 2>&1
-   ```
-   Set `LOTUS_API` if the nodes aren't at the defaults.
+The runs are automated on the node host with a systemd timer, 4 times a day. Setup steps, deploy keys
+and unit files are in [`deploy/`](deploy/README.md).
 
 ## Configuration
 
