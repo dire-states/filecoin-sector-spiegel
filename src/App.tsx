@@ -12,7 +12,9 @@ import type { History, MinerData, MinerIndex, MinerSummary } from './lib/types'
 class NotFound extends Error {}
 
 async function getJson<T>(base: string, path: string): Promise<T> {
-  const res = await fetch(base + path)
+  // Pages lets browsers cache files for 10 minutes; revalidate so a new snapshot shows up at once.
+  // Unchanged files still come from the cache (304).
+  const res = await fetch(base + path, { cache: 'no-cache' })
   if (res.status === 404) throw new NotFound(path)
   if (!res.ok) throw new Error(`${path}: ${res.status} ${res.statusText}`)
   return res.json() as Promise<T>
