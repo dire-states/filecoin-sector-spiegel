@@ -33,7 +33,8 @@ npm run fetch:calibnet                                  # writes ../data-calibne
 npm run fetch:mainnet                                   # writes ../data-mainnet
 ```
 
-- Add `-- --commit` to commit the snapshot in the data repo.
+- Add `-- --commit` to commit the snapshot in the data repo. The data repos keep no history: the
+  commit replaces the previous snapshot's commit.
 - Each data repo has a `dataset.json` naming its network. The script aborts if the node is on a
   different network.
 - The script aborts if the node's head is more than 10 min old (still syncing); `-- --allow-stale` overrides.

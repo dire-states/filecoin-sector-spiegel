@@ -254,8 +254,15 @@ console.log(
     ` ${Math.round((Date.now() - runStarted) / 1000)}s`,
 )
 
+// Data repos keep no history: the snapshot replaces the branch as a single parentless commit,
+// and the previous one is pruned so the repo stays the size of one snapshot.
 if (args.commit) {
-  const git = (...a: string[]) => execFileSync('git', ['-C', OUT_PATH, ...a], { stdio: 'inherit' })
+  const git = (...a: string[]) => execFileSync('git', ['-C', OUT_PATH, ...a], { encoding: 'utf8' }).trim()
   git('add', '-A')
-  git('commit', '-m', `snapshot ${network} @ ${head.Height} (${index.fetchedAt.slice(0, 10)})`)
+  const message = `snapshot ${network} @ ${head.Height} (${index.fetchedAt.slice(0, 10)})`
+  const commit = git('commit-tree', git('write-tree'), '-m', message)
+  git('update-ref', 'HEAD', commit)
+  git('reflog', 'expire', '--expire=now', '--all')
+  git('gc', '--prune=now', '--quiet')
+  console.log(`committed ${commit.slice(0, 7)} ${message}`)
 }
