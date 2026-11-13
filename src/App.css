@@ -217,6 +217,18 @@
   background: var(--border);
 }
 
+.miner.departed .miner-body {
+  cursor: default;
+}
+
+.miner.departed .miner-id {
+  color: var(--muted);
+}
+
+.miner.departed:hover {
+  background: none;
+}
+
 .miner.selected {
   background: var(--accent);
   color: #fff;

@@ -85,7 +85,7 @@ function Dashboard({ net, onNet }: { net: NetKey; onNet: (net: NetKey) => void }
     getJson<MinerIndex>(base, 'miners.json')
       .then(setIndex)
       .catch((err: Error) => setError(err instanceof NotFound ? `No ${NETWORKS[net].label} data yet.` : err.message))
-    // Optional: a dataset without recorded history shows an empty extensions list.
+    // Optional: a dataset without recorded history shows an empty history list.
     getJson<History>(base, 'history.json')
       .then(setHistory)
       .catch((err: Error) => !(err instanceof NotFound) && setError(err.message))
