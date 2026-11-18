@@ -9,8 +9,6 @@ After=lotus@%i.service
 
 [Service]
 Type=oneshot
-User=dire-states
-Group=dire-states
 WorkingDirectory=/opt/dire-states/sector-spiegel/filecoin-sector-spiegel
 # A Node 26 tarball unpacked to /opt/dire-states/node takes precedence over a system node.
 Environment=PATH=/opt/dire-states/node/bin:/usr/local/bin:/usr/bin:/bin

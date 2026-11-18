@@ -24,12 +24,12 @@ tar -xJf node-v26.*-linux-x64.tar.xz -C /opt/dire-states/node --strip-components
 /opt/dire-states/node/bin/node --version
 ```
 
-## 2. Service user
+## 2. Directories
+
+The runs are root's for now; everything lives under `/opt/dire-states`.
 
 ```sh
-useradd --system --home-dir /opt/dire-states --shell /usr/sbin/nologin dire-states
 mkdir -p /opt/dire-states/.ssh /opt/dire-states/sector-spiegel
-chown -R dire-states: /opt/dire-states
 chmod 700 /opt/dire-states/.ssh
 ```
 
@@ -38,10 +38,9 @@ chmod 700 /opt/dire-states/.ssh
 ```sh
 cd /opt/dire-states
 for repo in data-main data-calibration; do
-  sudo -u dire-states ssh-keygen -t ed25519 -N '' -C "sector-spiegel-$repo@$(hostname)" \
-    -f .ssh/sector-spiegel-$repo
+  ssh-keygen -t ed25519 -N '' -C "sector-spiegel-$repo@$(hostname)" -f .ssh/sector-spiegel-$repo
 done
-sudo -u dire-states sh -c 'ssh-keyscan github.com >> .ssh/known_hosts'
+mkdir -p /root/.ssh && ssh-keyscan github.com >> /root/.ssh/known_hosts
 cat .ssh/sector-spiegel-data-main.pub .ssh/sector-spiegel-data-calibration.pub
 ```
 
@@ -55,9 +54,9 @@ On GitHub, add each public key to its repo under **Settings → Deploy keys → 
 
 ```sh
 cd /opt/dire-states/sector-spiegel
-sudo -u dire-states git clone https://github.com/dire-states/filecoin-sector-spiegel.git
+git clone https://github.com/dire-states/filecoin-sector-spiegel.git
 for repo in data-main data-calibration; do
-  sudo -u dire-states git clone \
+  git clone \
     -c core.sshCommand="ssh -i /opt/dire-states/.ssh/sector-spiegel-$repo -o IdentitiesOnly=yes" \
     -c user.name=dire-states -c user.email=339008527+dire-states@users.noreply.github.com \
     git@github.com:dire-states/filecoin-sector-spiegel-$repo.git
@@ -72,9 +71,10 @@ the snapshot, so the extension history carries on.
 
 ```sh
 cd /opt/dire-states/sector-spiegel/filecoin-sector-spiegel
-sudo -u dire-states env PATH=/opt/dire-states/node/bin:$PATH NO_PUSH=1 scripts/publish.sh calibnet   # commits, no push
-sudo -u dire-states env PATH=/opt/dire-states/node/bin:$PATH scripts/publish.sh calibnet             # pushes
-sudo -u dire-states env PATH=/opt/dire-states/node/bin:$PATH scripts/publish.sh mainnet              # ~7 min, ~2.5 GB RAM
+export PATH=/opt/dire-states/node/bin:$PATH
+NO_PUSH=1 scripts/publish.sh calibnet   # commits, no push
+scripts/publish.sh calibnet             # pushes
+scripts/publish.sh mainnet              # ~7 min, ~2.5 GB RAM
 ```
 
 Each run ends with `<net>: published snapshot … as <commit>` and `<net>: done in <N>s`. The nodes
@@ -101,7 +101,7 @@ the host was down starts at the next boot.
 ## Updating the scripts
 
 ```sh
-sudo -u dire-states git -C /opt/dire-states/sector-spiegel/filecoin-sector-spiegel pull
+git -C /opt/dire-states/sector-spiegel/filecoin-sector-spiegel pull
 ```
 
 If a unit file changed, copy it again and run `systemctl daemon-reload`.
