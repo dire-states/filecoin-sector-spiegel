@@ -20,10 +20,12 @@ started=$(date +%s)
 exec 9>"$DATA/.git/publish.lock"
 flock -n 9 || { echo "$net: another publish is running" >&2; exit 1; }
 
-# The working tree is the previous snapshot, which the history diff compares against.
+# The working tree is the previous snapshot, which the history diff compares against. Changes
+# can only be leftovers of a run that died midway (node gone, killed), so restore the snapshot.
 if [ -n "$(git -C "$DATA" status --porcelain)" ]; then
-  echo "$net: $DATA has uncommitted changes" >&2
-  exit 1
+  echo "$net: discarding leftovers of a failed run in $DATA" >&2
+  git -C "$DATA" reset --quiet --hard
+  git -C "$DATA" clean --quiet -fd
 fi
 
 node "$APP/scripts/fetch-sectors.ts" --out "$DATA" --commit

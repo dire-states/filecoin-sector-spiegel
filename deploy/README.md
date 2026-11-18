@@ -95,8 +95,8 @@ the host was down starts at the next boot.
 
 - Run now: `systemctl start sector-spiegel@mainnet`
 - Logs: `journalctl -u sector-spiegel@mainnet -e`
-- Failures: `systemctl --failed`. A failed run, for example a node out of sync, commits and pushes
-  nothing; the next run picks up normally.
+- Failures: `systemctl --failed`. A failed run, for example a node out of sync or unreachable,
+  commits and pushes nothing. The next run discards any files it left behind and picks up normally.
 
 ## Updating the scripts
 

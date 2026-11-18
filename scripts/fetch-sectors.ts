@@ -48,7 +48,9 @@ const SECTORS_CHUNK = 50_000
 const DEADLINES = 48
 
 let rpcId = 0
-async function rpc<T>(method: string, params: unknown[], attempts = 3): Promise<T> {
+// Pauses before each retry, so a short node hiccup doesn't end a long run.
+const RETRY_DELAYS_MS = [1_000, 5_000]
+async function rpc<T>(method: string, params: unknown[], attempts = RETRY_DELAYS_MS.length + 1): Promise<T> {
   for (let attempt = 1; ; attempt++) {
     try {
       const res = await fetch(API, {
@@ -64,6 +66,7 @@ async function rpc<T>(method: string, params: unknown[], attempts = 3): Promise<
         const cause = (err as { cause?: { code?: string } }).cause?.code
         throw cause ? new Error(`${method}: cannot reach ${API} (${cause})`) : err
       }
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt - 1]))
     }
   }
 }
