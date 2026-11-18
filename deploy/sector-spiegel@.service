@@ -4,6 +4,8 @@
 Description=sector-spiegel snapshot (%i)
 After=network-online.target
 Wants=network-online.target
+# Waits for a node that is still starting; ordering only, a stopped node fails the run cleanly.
+After=lotus@%i.service
 
 [Service]
 Type=oneshot

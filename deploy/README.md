@@ -78,7 +78,7 @@ sudo -u dire-states env PATH=/opt/dire-states/node/bin:$PATH scripts/publish.sh 
 ```
 
 Each run ends with `<net>: published snapshot … as <commit>` and `<net>: done in <N>s`. The nodes
-default to `192.168.50.123:1234` (calibnet) and `:1235` (mainnet); set `LOTUS_API` if they live
+default to `192.168.50.123:1234` (mainnet) and `:1235` (calibnet); set `LOTUS_API` if they live
 elsewhere.
 
 ## 6. Schedule

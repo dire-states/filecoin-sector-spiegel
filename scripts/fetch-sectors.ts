@@ -29,8 +29,8 @@ const MINERS_DIR = new URL('miners/', DATA_DIR)
 const dataset = JSON.parse(await readFile(new URL('dataset.json', DATA_DIR), 'utf8')) as { network: string }
 // Local nodes per network; LOTUS_API overrides. The network-name check below catches a wrong port.
 const DEFAULT_API: Record<string, string> = {
-  calibrationnet: 'http://192.168.50.123:1234/rpc/v1',
-  mainnet: 'http://192.168.50.123:1235/rpc/v1',
+  calibrationnet: 'http://192.168.50.123:1235/rpc/v1',
+  mainnet: 'http://192.168.50.123:1234/rpc/v1',
 }
 const API =
   process.env.LOTUS_API ??

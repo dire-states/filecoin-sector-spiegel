@@ -68,7 +68,7 @@ and unit files are in [`deploy/`](deploy/README.md).
 
 | Variable | Used by | Default |
 |---|---|---|
-| `LOTUS_API` | fetch script | calibnet: `http://192.168.50.123:1234/rpc/v1`; mainnet: `http://192.168.50.123:1235/rpc/v1` |
+| `LOTUS_API` | fetch script | calibnet: `http://192.168.50.123:1235/rpc/v1`; mainnet: `http://192.168.50.123:1234/rpc/v1` |
 | `DATA_DIR` | publish.sh | `../filecoin-sector-spiegel-data-calibration` or `../filecoin-sector-spiegel-data-main` |
 | `NO_PUSH` | publish.sh | unset (push) |
 | `DATA_DIR_CALIBNET`, `DATA_DIR_MAINNET` | dev/preview server | the two sibling data repos |
